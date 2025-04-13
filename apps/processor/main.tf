@@ -52,7 +52,7 @@ data "aws_iam_policy_document" "video_processor" {
 
 resource "aws_sns_topic" "video_processor" {
   name   = "${var.project}-s3-${var.environment}"
-  policy = data.aws_iam_policy_document.topic.json
+  policy = data.aws_iam_policy_document.video_processor.json
 }
 
 resource "aws_s3_bucket" "video_files" {
@@ -112,14 +112,14 @@ resource "aws_cloudwatch_log_group" "lambda_processor" {
   retention_in_days = 5
 }
 
-resource "aws_lambda_event_source_mapping" "process_order_payment_event_source_mapping" {
-  event_source_arn = aws_sqs_queue.process_order_payment_queue.arn
+resource "aws_lambda_event_source_mapping" "video_processor_event_source_mapping" {
+  event_source_arn = aws_sqs_queue.video_processor_files.arn
   enabled          = true
-  function_name    = module.process_order_payment.arn
+  function_name    = module.lambda_processor.arn
 }
 
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project}-process-order-payment-role"
+  name = "${var.project}-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
