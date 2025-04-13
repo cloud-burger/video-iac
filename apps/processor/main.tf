@@ -85,13 +85,23 @@ resource "aws_dynamodb_table" "video_processor" {
   }
 
   attribute {
-    name = "document_number"
+    name = "file_name"
+    type = "S"
+  }
+
+  attribute {
+    name = "user"
+    type = "S"
+  }
+  
+  attribute {
+    name = "status"
     type = "S"
   }
 
   global_secondary_index {
-    name            = "document_number_gsi"
-    hash_key        = "document_number"
+    name            = "user_gsi"
+    hash_key        = "user"
     projection_type = "ALL"
   }
 }
