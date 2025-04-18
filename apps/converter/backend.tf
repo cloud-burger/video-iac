@@ -5,7 +5,7 @@ provider "aws" {
 terraform {
   backend "s3" {
     bucket = "cloud-burger-states"
-    key    = "video/prod/apps/processor/terraform.tfstate"
+    key    = "video/prod/apps/converter/terraform.tfstate"
     region = "us-east-1"
   }
 }
