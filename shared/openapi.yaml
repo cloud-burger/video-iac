@@ -1,766 +1,161 @@
 openapi: 3.0.3
 info:
-  description: Api responsible for managing customer orders from the Cloud Burger restaurant
+  title: Video Converter API
+  description: API for managing video uploads, processing, and retrieval.
   version: 1.0.0
-  title: Self Service
-  contact:
-    name: Cloud Burger Support
-    email: support@cloud-burger.com
-
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:3000/dev
     description: Local running
+  - url: https://{apiId}.execute-api.{region}.amazonaws.com/dev
+    description: AWS API Gateway
+    variables:
+      apiId:
+        default: your-api-id
+      region:
+        default: us-east-1
 paths:
-  /customers:
-    post:
-      tags:
-        - Customer
-      summary: Create customer
-      description: API responsible for creating customers
-      security:
-        - cloud-burger-authorizer: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateCustomerRequest"
-      responses:
-        "201":
-          $ref: "#/components/responses/CreateCustomer"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "409":
-          $ref: "#/components/responses/ConflictError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-      x-amazon-apigateway-integration:
-        type: HTTP_PROXY
-        httpMethod: POST
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/customers
-  /customers/{documentNumber}:
+  /video:
     get:
       tags:
-        - Customer
-      summary: Find customer by document number
-      description: API responsible for finding customer by document number
+        - Video
+      summary: List videos
+      description: Retrieve a list of videos with their processing status and metadata.
+      operationId: listVideos
       security:
-        - cloud-burger-authorizer: []
+        - cloud-burger-cognito: ["cloud-burger-video/list_videos"]
       parameters:
-        - $ref: "#/components/parameters/DocumentNumber"
+        - name: pageSize
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Number of videos per page.
+        - name: pageNumber
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Page number to retrieve.
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [UPLOADED, PROCESSING, PROCESSED, FAILED, WAITING_UPLOAD]
+          description: Filter videos by status.
       responses:
-        "201":
-          $ref: "#/components/responses/FindCustomerByDocumentNumber"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+        '200':
+          description: A list of videos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VideoResponse'
+        '400':
+          description: Invalid request parameters.
+        '500':
+          description: Internal server error.
       x-amazon-apigateway-integration:
-        type: HTTP_PROXY
-        httpMethod: GET
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/customers/{documentNumber}
-        requestParameters:
-          integration.request.path.documentNumber: method.request.path.documentNumber
-  /products:
-    post:
-      tags:
-        - Product
-      summary: Create product
-      description: API responsible for creating product
-      security:
-        - cloud-burger-cognito: ["cloud-burger/product_write"]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateProductRequest"
-      responses:
-        "201":
-          $ref: "#/components/responses/CreateProduct"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "409":
-          $ref: "#/components/responses/ConflictError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-      x-amazon-apigateway-integration:
-        type: HTTP_PROXY
+        type: aws_proxy
         httpMethod: POST
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/products
+        passthroughBehavior: when_no_match
+        uri: ${lambda_function_list_video}
+
+  /video/url:
     get:
       tags:
-        - Product
-      summary: Find products by category
-      description: API responsible for finding products by category
+        - Video
+      summary: Get video upload URL
+      description: Generate a signed URL for uploading a video.
+      operationId: getVideoUrl
       security:
-        - cloud-burger-authorizer: []
-      parameters:
-        - $ref: "#/components/parameters/Category"
+        - cloud-burger-cognito: ["cloud-burger-video/put_video_url"]
       responses:
-        "200":
-          $ref: "#/components/responses/FindProductByCategory"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+        '200':
+          description: A signed URL for video upload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetVideoUrlResponse'
+        '500':
+          description: Internal server error.
       x-amazon-apigateway-integration:
-        type: HTTP_PROXY
-        httpMethod: GET
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/products/category
-  /products/{id}:
-    put:
-      tags:
-        - Product
-      summary: Update product
-      description: API responsible for updating product
-      security:
-        - cloud-burger-cognito: ["cloud-burger/product_write"]
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateProductRequest"
-      responses:
-        "200":
-          $ref: "#/components/responses/UpdateProduct"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-      x-amazon-apigateway-integration:
-        type: HTTP_PROXY
-        httpMethod: PUT
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/products/{id}
-        requestParameters:
-          integration.request.path.id: method.request.path.id
-    delete:
-      tags:
-        - Product
-      summary: Delete product
-      description: API responsible for deleting product
-      security:
-        - cloud-burger-cognito: ["cloud-burger/product_delete"]
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "204":
-          $ref: "#/components/responses/NoContent"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-      x-amazon-apigateway-integration:
-        type: HTTP_PROXY
-        httpMethod: DELETE
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/products/{id}
-        requestParameters:
-          integration.request.path.id: method.request.path.id
-  /orders:
-    post:
-      tags:
-        - Order
-      summary: Create order
-      description: API responsible for creating order
-      security:
-        - cloud-burger-authorizer: []
-      parameters:
-        - $ref: "#/components/parameters/XIdentification"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateOrderRequest"
-      responses:
-        "201":
-          $ref: "#/components/responses/CreateOrder"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-      x-amazon-apigateway-integration:
-        type: HTTP_PROXY
+        type: aws_proxy
         httpMethod: POST
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/orders
+        passthroughBehavior: when_no_match
+        uri: ${lambda_function_put_video_url}
+
+  /video/{id}/frame-url:
     get:
       tags:
-        - Order
-      summary: List orders
-      description: API responsible for listing orders
+        - Video
+      summary: Get video frames URL
+      description: Retrieve a signed URL for downloading the frames of a processed video.
+      operationId: getVideoFramesUrl
       security:
-        - cloud-burger-authorizer: []
+        - cloud-burger-cognito: ["cloud-burger-video/get_video_frames_url"]
       parameters:
-        - $ref: "#/components/parameters/PageSize"
-        - $ref: "#/components/parameters/PageNumber"
-        - $ref: "#/components/parameters/OrderStatus"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the video.
       responses:
-        "200":
-          $ref: "#/components/responses/ListOrders"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+        '200':
+          description: A signed URL for downloading video frames.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetVideoFramesUrlResponse'
+        '404':
+          description: Video not found or frames not available.
+        '400':
+          description: Video frames not processed.
+        '500':
+          description: Internal server error.
       x-amazon-apigateway-integration:
-        type: HTTP_PROXY
-        httpMethod: GET
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/orders
-  /orders/{id}:
-    get:
-      tags:
-        - Order
-      summary: Find order by id
-      description: API responsible for find order by id
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          $ref: "#/components/responses/FindOrderById"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-      x-amazon-apigateway-integration:
-        type: HTTP_PROXY
-        httpMethod: GET
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/orders/{id}
-        requestParameters:
-          integration.request.path.id: method.request.path.id
-    put:
-      tags:
-        - Order
-      summary: Update order status
-      description: API responsible for updating order status
-      security:
-        - cloud-burger-cognito: ["cloud-burger/update_order"]
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateOrderStatusRequest"
-      responses:
-        "200":
-          $ref: "#/components/responses/CreateOrder"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-      x-amazon-apigateway-integration:
-        type: HTTP_PROXY
-        httpMethod: PUT
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/orders/{id}
-        requestParameters:
-          integration.request.path.id: method.request.path.id
-  /payments/{orderId}:
-    get:
-      tags:
-        - Payment
-      summary: Find payment by order id
-      description: API responsible for finding payment by order id
-      security:
-        - cloud-burger-cognito: ["cloud-burger/payment_read"]
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200":
-          $ref: "#/components/responses/FindPaymentByOrderId"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-      x-amazon-apigateway-integration:
-        type: HTTP_PROXY
-        httpMethod: GET
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/payments/{orderId}
-        requestParameters:
-          integration.request.path.orderId: method.request.path.orderId
-  /payments:
-    post:
-      tags:
-        - Payment
-      summary: Create payment
-      description: API responsible for creating payment
-      security:
-        - cloud-burger-authorizer: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreatePaymentRequest"
-      responses:
-        "200":
-          $ref: "#/components/responses/CreatePayment"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-      x-amazon-apigateway-integration:
-        type: HTTP_PROXY
+        type: aws_proxy
         httpMethod: POST
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/payments
-  /webhook:
-    post:
-      tags:
-        - Webhook
-      summary: Payment Webhook
-      description: API responsible for process payment events
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "202":
-          $ref: "#/components/responses/NoContent"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-      x-amazon-apigateway-integration:
-        type: HTTP_PROXY
-        httpMethod: POST
-        connectionType: VPC_LINK
-        connectionId: ${vpc_link_id}
-        uri: ${load_balancer_uri}/webhook
+        passthroughBehavior: when_no_match
+        uri: ${lambda_function_get_video_frames_url}
+
 components:
-  parameters:
-    PageSize:
-      in: query
-      name: pageSize
-      schema:
-        $ref: "#/components/schemas/PageSize"
-      required: true
-    PageNumber:
-      in: query
-      name: pageNumber
-      schema:
-        $ref: "#/components/schemas/PageNumber"
-      required: true
-    OrderStatus:
-      in: query
-      name: status
-      schema:
-        $ref: "#/components/schemas/OrderStatus"
-      required: false
-    Id:
-      in: path
-      name: id
-      schema:
-        $ref: "#/components/schemas/Id"
-      required: true
-    XIdentification:
-      in: header
-      name: x-identification
-      schema:
-        $ref: "#/components/schemas/DocumentNumber"
-      required: false
-    Category:
-      in: query
-      name: category
-      schema:
-        $ref: "#/components/schemas/ProductCategory"
-      required: false
-    DocumentNumber:
-      in: path
-      name: documentNumber
-      schema:
-        $ref: "#/components/schemas/DocumentNumber"
-      required: true
-  responses:
-    CreateCustomer:
-      description: Customer created successfully
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/CustomerResponse"
-    FindCustomerByDocumentNumber:
-      description: Customer found
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/CustomerResponse"
-    CreateProduct:
-      description: Product created successfully
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ProductResponse"
-    UpdateProduct:
-      description: Product updated successfully
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ProductResponse"
-    FindProductByCategory:
-      description: Product deleted successfully
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ProductsResponse"
-    CreateOrder:
-      description: Order created successfully
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/OrderResponse"
-    FindOrderById:
-      description: Order found successfully
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/OrderResponse"
-    ListOrders:
-      description: List orders successfully
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ListOrdersResponse"
-    FindPaymentByOrderId:
-      description: Payment found
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/FindPaymentResponse"
-    CreatePayment:
-      description: Payment created
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/PaymentResponse"
-    NoContent:
-      description: No Content
-    BadRequest:
-      description: Bad Request
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/BadRequestErrorResponse"
-    ConflictError:
-      description: Conflic Error
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ConflictErrorResponse"
-    NotFound:
-      description: Not Found
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/NotFoundErrorResponse"
-    InternalServerError:
-      description: Bad Request
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/InternalServerErrorResponse"
   schemas:
-    Id:
-      type: string
-      example: 297d3ea7-610d-4c46-85f8-e3cb2fa4dd83
-      description: Identifier
-    PageSize:
-      type: number
-      example: 10
-      description: Page size
-    PageNumber:
-      type: number
-      example: 1
-      description: Page number
-    DocumentNumber:
-      type: string
-      example: "53523992060"
-      description: Customer document number
-    CustomerName:
-      type: string
-      example: John Due
-      description: Customer name
-    CustomerEmail:
-      type: string
-      example: johndue@gmail.com
-      description: Customer email
-    ProductName:
-      type: string
-      example: X Burger
-      description: Product name
-    ProductCategory:
-      type: string
-      enum:
-        - BURGER
-        - SIDE
-        - DRINK
-        - DESSERT
-      description: Product category
-      example: BURGER
-    OrderStatus:
-      type: string
-      enum:
-        - RECEIVED
-        - PREPARING
-        - DONE
-        - FINISHED
-      description: Order status
-      example: RECEIVED
-    PaymentStatus:
-      type: string
-      enum:
-        - WAITING_PAYMENT
-        - PAID
-        - CANCELED
-      description: Payment status
-      example: PAID
-    Emv:
-      type: string
-      description: Pix copia e cola
-      example: 00020101021243650016COM.MERCADOLIBRE0201306364a9e4780-d0a6-42e8-98d7-f6805209d83a5204000053039865802BR5909Test Test6009SAO PAULO62070503***63041A36
-    ProductDescription:
-      type: string
-      example: Pão carne e queijo
-      description: Product description
-    Amount:
-      type: string
-      example: R$ 19,99
-      description: Amount
-    Number:
-      type: number
-      example: 10
-      description: Order number
-    ProductAmount:
-      type: number
-      example: 19.99
-      description: Product Amount
-    ProductImage:
-      type: string
-      example: assets.myimage.com/213
-      description: Product image url
-    ProductNotes:
-      type: string
-      description: Product notes
-      example: no sugar
-    ProductQuantity:
-      type: number
-      description: Product quantity
-      example: 1
-    Reason:
-      type: string
-      example: Error reason
-    CustomerResponse:
+    VideoResponse:
       type: object
       properties:
         id:
-          $ref: "#/components/schemas/Id"
-        documentNumber:
-          $ref: "#/components/schemas/DocumentNumber"
-        name:
-          $ref: "#/components/schemas/CustomerName"
-        email:
-          $ref: "#/components/schemas/CustomerEmail"
-    ListOrdersResponse:
-      type: array
-      items:
-        $ref: "#/components/schemas/OrderResponse"
-    OrderResponse:
-      type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/Id"
-        amount:
-          $ref: "#/components/schemas/Amount"
-        number:
-          $ref: "#/components/schemas/Number"
-        customer:
-          $ref: "#/components/schemas/CustomerResponse"
+          type: string
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            email:
+              type: string
         status:
-          $ref: "#/components/schemas/OrderStatus"
-        products:
-          $ref: "#/components/schemas/OrderProductsResponse"
-    ProductsResponse:
-      type: array
-      items:
-        $ref: "#/components/schemas/ProductResponse"
-    ProductResponse:
+          type: string
+          enum: [UPLOADED, PROCESSING, PROCESSED, FAILED, WAITING_UPLOAD]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    GetVideoUrlResponse:
       type: object
       properties:
-        id:
-          $ref: "#/components/schemas/Id"
-        name:
-          $ref: "#/components/schemas/ProductName"
-        category:
-          $ref: "#/components/schemas/ProductCategory"
-        description:
-          $ref: "#/components/schemas/ProductDescription"
-        amount:
-          $ref: "#/components/schemas/Amount"
-        image:
-          $ref: "#/components/schemas/ProductImage"
-    OrderProductsResponse:
-      type: array
-      items:
-        $ref: "#/components/schemas/OrderProductResponse"
-    OrderProductResponse:
+        url:
+          type: string
+    GetVideoFramesUrlResponse:
       type: object
       properties:
-        id:
-          $ref: "#/components/schemas/Id"
-        name:
-          $ref: "#/components/schemas/ProductName"
-        category:
-          $ref: "#/components/schemas/ProductCategory"
-        description:
-          $ref: "#/components/schemas/ProductDescription"
-        amount:
-          $ref: "#/components/schemas/Amount"
-        image:
-          $ref: "#/components/schemas/ProductImage"
-        notes:
-          $ref: "#/components/schemas/ProductNotes"
-        quantity:
-          $ref: "#/components/schemas/ProductQuantity"
-    PaymentResponse:
-      type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/Id"
-        amount:
-          $ref: "#/components/schemas/Amount"
-        status:
-          $ref: "#/components/schemas/PaymentStatus"
-        orderId:
-          $ref: "#/components/schemas/Id"
-        emv:
-          $ref: "#/components/schemas/Emv"
-    FindPaymentResponse:
-      type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/Id"
-        status:
-          $ref: "#/components/schemas/PaymentStatus"
-    NotFoundErrorResponse:
-      type: object
-      properties:
-        reason:
-          $ref: "#/components/schemas/Reason"
-    InternalServerErrorResponse:
-      type: object
-      properties:
-        reason:
-          $ref: "#/components/schemas/Reason"
-    ConflictErrorResponse:
-      type: object
-      properties:
-        reason:
-          $ref: "#/components/schemas/Reason"
-    BadRequestErrorResponse:
-      type: object
-      properties:
-        reason:
-          $ref: "#/components/schemas/Reason"
-        invalidParams:
-          type: array
-          items:
-            type: object
-            properties:
-              name:
-                type: string
-                description: Field name
-                example: amount
-              value:
-                type: string
-                description: Field value
-                example: "1"
-              reason:
-                type: string
-                description: Invalid param reason
-                example: Parameter number failed custom validation because is invalid
-    CreateCustomerRequest:
-      type: object
-      properties:
-        documentNumber:
-          $ref: "#/components/schemas/DocumentNumber"
-        name:
-          $ref: "#/components/schemas/CustomerName"
-        email:
-          $ref: "#/components/schemas/CustomerEmail"
-    CreateOrderRequest:
-      type: object
-      properties:
-        products:
-          type: array
-          items:
-            $ref: "#/components/schemas/CreateOrderProductRequest"
-    CreateOrderProductRequest:
-      type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/Id"
-        quantity:
-          $ref: "#/components/schemas/ProductQuantity"
-        notes:
-          $ref: "#/components/schemas/ProductNotes"
-    UpdateOrderStatusRequest:
-      type: object
-      properties:
-        status:
-          $ref: "#/components/schemas/OrderStatus"
-    CreatePaymentRequest:
-      type: object
-      properties:
-        orderId:
-          $ref: "#/components/schemas/Id"
-    CreateProductRequest:
-      type: object
-      properties:
-        name:
-          $ref: "#/components/schemas/ProductName"
-        category:
-          $ref: "#/components/schemas/ProductCategory"
-        description:
-          $ref: "#/components/schemas/ProductDescription"
-        amount:
-          $ref: "#/components/schemas/ProductAmount"
-        image:
-          $ref: "#/components/schemas/ProductImage"
-    UpdateProductRequest:
-      type: object
-      properties:
-        name:
-          $ref: "#/components/schemas/ProductName"
-        category:
-          $ref: "#/components/schemas/ProductCategory"
-        description:
-          $ref: "#/components/schemas/ProductDescription"
-        amount:
-          $ref: "#/components/schemas/ProductAmount"
-        image:
-          $ref: "#/components/schemas/ProductImage"
+        url:
+          type: string
   securitySchemes:
     cloud-burger-cognito:
       type: apiKey
@@ -771,14 +166,3 @@ components:
         type: COGNITO_USER_POOLS
         providerARNs:
           - ${provider_arn}
-    cloud-burger-authorizer:
-      type: apiKey
-      name: "x-identification"
-      in: header
-      x-amazon-apigateway-authtype: CUSTOM
-      x-amazon-apigateway-authorizer:
-        type: REQUEST
-        identitySource: method.request.header.x-identification
-        authorizerUri: ${authorizer_uri}
-        authorizerCredentials: ${authorizer_credentials}
-        authorizerResultTtlInSeconds: 300
