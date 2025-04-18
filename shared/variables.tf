@@ -9,3 +9,7 @@ variable "region" {
 variable "project" {
   default = "cloud-burger"
 }
+
+variable "api_version" {
+  default = "2015-03-31"
+}
