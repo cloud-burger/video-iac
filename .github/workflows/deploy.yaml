@@ -59,8 +59,8 @@ jobs:
           cd apps/notification
           terraform init && terraform apply -auto-approve
 
-  deploy_processor:
-    name: "Deploy Processor"
+  deploy_converter:
+    name: "Deploy Converter"
     runs-on: ubuntu-latest
     needs: deploy_shared
     if: github.event_name == 'push' || github.event.inputs.action == 'apply'
@@ -74,30 +74,10 @@ jobs:
         with:
           terraform_version: 1.10.2
 
-      - name: Deploy Processor
+      - name: Deploy Converter
         run: |
-          cd apps/processor
-          terraform init && terraform apply -auto-approve
-
-  deploy_upload:
-    name: "Deploy Upload"
-    runs-on: ubuntu-latest
-    needs: deploy_shared
-    if: github.event_name == 'push' || github.event.inputs.action == 'apply'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          terraform_version: 1.10.2
-
-      - name: Deploy Upload
-        run: |
-          cd apps/upload
-          terraform init && terraform apply -auto-approve
+          cd apps/converter
+          terraform init && terraform apply -var "database_password=${{ secrets.DATABASE_PASSWORD }}" -auto-approve
 
   terraform_destroy_apps:
     name: "Destroy Apps"
@@ -118,9 +98,9 @@ jobs:
           cd apps/notification
           terraform init && terraform destroy -auto-approve
 
-      - name: Destroy Processor
+      - name: Destroy converter
         run: |
-          cd apps/processor
+          cd apps/converter
           terraform init && terraform destroy -auto-approve
 
       - name: Destroy Upload
