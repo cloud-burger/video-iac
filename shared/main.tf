@@ -26,8 +26,9 @@ resource "aws_cognito_user_pool_client" "main_client" {
     "email",
     "openid",
     "profile",
-    "cloud-burger-video/customer_write",
-    "cloud-burger-video/customer_read"
+    "cloud-burger-video/list_videos",
+    "cloud-burger-video/put_video_url",
+    "cloud-burger-video/get_video_frames_url"
   ]
 }
 
@@ -37,26 +38,30 @@ resource "aws_cognito_resource_server" "main_resource_server" {
   name         = "Recursos das rotas de administracao"
 
   scope {
-    scope_name        = "customer_write"
-    scope_description = "Criar clientes"
+    scope_name        = "list_videos"
+    scope_description = "Lista os videos e seus status de processamento"
   }
 
   scope {
-    scope_name        = "customer_read"
-    scope_description = "Ler dados dos clientes"
+    scope_name        = "put_video_url"
+    scope_description = "Obtem url para upload de video"
+  }
+
+  scope {
+    scope_name        = "get_video_frames_url"
+    scope_description = "Obtem url para obter zip com frames do video"
   }
 }
 
 resource "aws_api_gateway_rest_api" "main" {
   name = "${var.project}-video-${var.environment}"
 
-  # body = templatefile("${path.module}/openapi.yaml", {
-  #   load_balancer_uri      = "http://api.cloudburger.com.br",
-  #   authorizer_uri         = module.lambda_authorizer.invoke_arn,
-  #   authorizer_credentials = aws_iam_role.invocation_role.arn,
-  #   provider_arn           = aws_cognito_user_pool.main.arn,
-  #   vpc_link_id            = aws_api_gateway_vpc_link.main_vpc_link.id
-  # })
+  body = templatefile("${path.module}/openapi.yaml", {
+    lambda_function_list_video           = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/${arn_lambda_function_list_video}/invocations",
+    lambda_function_put_video_url        = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/${arn_lambda_function_put_video_url}/invocations",
+    lambda_function_get_video_frames_url = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/${arn_lambda_function_get_video_frames_url}/invocations",
+    provider_arn                         = aws_cognito_user_pool.main.arn
+  })
 
   endpoint_configuration {
     types = ["REGIONAL"]
@@ -69,23 +74,23 @@ resource "aws_api_gateway_rest_api" "main" {
   }
 }
 
-# resource "aws_api_gateway_stage" "main_stage" {
-#   deployment_id = aws_api_gateway_deployment.main.id
-#   rest_api_id   = aws_api_gateway_rest_api.main.id
-#   stage_name    = var.environment
-# }
+resource "aws_api_gateway_stage" "main_stage" {
+  deployment_id = aws_api_gateway_deployment.main.id
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  stage_name    = var.environment
+}
 
-# resource "aws_api_gateway_deployment" "main" {
-#   rest_api_id = aws_api_gateway_rest_api.main.id
+resource "aws_api_gateway_deployment" "main" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
 
-#   triggers = {
-#     redeployment = sha1(jsonencode([aws_api_gateway_rest_api.main.body]))
-#   }
+  triggers = {
+    redeployment = sha1(jsonencode([aws_api_gateway_rest_api.main.body]))
+  }
 
-#   lifecycle {
-#     create_before_destroy = true
-#   }
-# }
+  lifecycle {
+    create_before_destroy = true
+  }
+}
 
 # resource "aws_api_gateway_vpc_link" "main_vpc_link" {
 #   name = "k8s-vpc-link"
