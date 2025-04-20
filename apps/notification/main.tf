@@ -2,7 +2,7 @@ module "lambda_notification" {
   source             = "../../modules/lambda"
   name               = "${var.project}-${var.environment}"
   lambda_role        = aws_iam_role.lambda_role.arn
-  handler            = "src/api/handlers/notification.handler"
+  handler            = "src/app/handlers/send-notification/index.handler"
   source_bucket      = "cloud-burger-artifacts"
   source_key         = "notification.zip"
   project            = var.project
