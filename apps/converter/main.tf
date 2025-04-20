@@ -7,38 +7,6 @@ locals {
   ]
 }
 
-resource "aws_sqs_queue" "video_converter_files_dlq" {
-  content_based_deduplication       = false
-  delay_seconds                     = 0
-  fifo_queue                        = false
-  kms_data_key_reuse_period_seconds = 300
-  max_message_size                  = 262144
-  message_retention_seconds         = 345600
-  name                              = "${var.project}-files-dlq-${var.environment}"
-  receive_wait_time_seconds         = 0
-  sqs_managed_sse_enabled           = true
-  visibility_timeout_seconds        = 30
-}
-
-resource "aws_sqs_queue" "video_converter_files" {
-  content_based_deduplication       = false
-  delay_seconds                     = 0
-  fifo_queue                        = false
-  kms_data_key_reuse_period_seconds = 300
-  max_message_size                  = 262144
-  message_retention_seconds         = 345600
-  name                              = "${var.project}-files-${var.environment}"
-  receive_wait_time_seconds         = 0
-  sqs_managed_sse_enabled           = true
-  visibility_timeout_seconds        = 30
-  redrive_policy = jsonencode(
-    {
-      deadLetterTargetArn = aws_sqs_queue.video_converter_files_dlq.arn
-      maxReceiveCount     = 5
-    }
-  )
-}
-
 data "aws_iam_policy_document" "video_converter" {
   statement {
     effect = "Allow"
@@ -83,12 +51,23 @@ resource "aws_s3_bucket_notification" "video_converter_notification" {
   }
 }
 
+locals {
+  lambdas = {
+    list-videos          = "src/app/handlers/list-videos/index.handler"
+    get-video-url        = "src/app/handlers/get-video-url/index.handler"
+    process-video        = "src/app/handlers/process-video/index.handler"
+    get-video-frames-url = "src/app/handlers/get-video-frames-url/index.handler"
+  }
+}
+
 
 module "lambda_converter" {
-  source             = "../../modules/lambda"
-  name               = "${var.project}-${var.environment}"
+  source   = "../../modules/lambda"
+  for_each = local.lambdas
+
+  name               = "${var.project}-${each.key}-${var.environment}"
   lambda_role        = aws_iam_role.lambda_role.arn
-  handler            = "src/api/handlers/converter.handler"
+  handler            = each.value
   source_bucket      = "cloud-burger-artifacts"
   source_key         = "converter.zip"
   project            = var.project
@@ -106,7 +85,8 @@ module "lambda_converter" {
 }
 
 resource "aws_cloudwatch_log_group" "lambda_converter" {
-  name              = "/aws/lambda/${module.lambda_converter.function_name}"
+  for_each          = local.lambdas
+  name              = "/aws/lambda/${var.project}-${each.key}-${var.environment}"
   retention_in_days = 5
 }
 

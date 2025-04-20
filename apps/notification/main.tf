@@ -40,3 +40,35 @@ resource "aws_iam_policy_attachment" "sns_policy_attachment" {
 resource "aws_sns_topic" "video_email_notification" {
   name   = "${var.project}-email-${var.environment}"
 }
+
+resource "aws_sqs_queue" "video_notification_dlq" {
+  content_based_deduplication       = false
+  delay_seconds                     = 0
+  fifo_queue                        = false
+  kms_data_key_reuse_period_seconds = 300
+  max_message_size                  = 262144
+  message_retention_seconds         = 345600
+  name                              = "${var.project}-dlq-${var.environment}"
+  receive_wait_time_seconds         = 0
+  sqs_managed_sse_enabled           = true
+  visibility_timeout_seconds        = 30
+}
+
+resource "aws_sqs_queue" "video_notification" {
+  content_based_deduplication       = false
+  delay_seconds                     = 0
+  fifo_queue                        = false
+  kms_data_key_reuse_period_seconds = 300
+  max_message_size                  = 262144
+  message_retention_seconds         = 345600
+  name                              = "${var.project}-${var.environment}"
+  receive_wait_time_seconds         = 0
+  sqs_managed_sse_enabled           = true
+  visibility_timeout_seconds        = 30
+  redrive_policy = jsonencode(
+    {
+      deadLetterTargetArn = aws_sqs_queue.video_notification_dlq.arn
+      maxReceiveCount     = 5
+    }
+  )
+}

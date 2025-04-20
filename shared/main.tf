@@ -57,9 +57,9 @@ resource "aws_api_gateway_rest_api" "main" {
   name = "${var.project}-video-${var.environment}"
 
   body = templatefile("${path.module}/openapi.yaml", {
-    lambda_function_list_video           = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/${arn_lambda_function_list_video}/invocations",
-    lambda_function_put_video_url        = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/${arn_lambda_function_put_video_url}/invocations",
-    lambda_function_get_video_frames_url = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/${arn_lambda_function_get_video_frames_url}/invocations",
+    lambda_function_list_video           = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/video-converter-list-videos-prod/invocations",
+    lambda_function_put_video_url        = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/video-converter-get-video-url-prod/invocations",
+    lambda_function_get_video_frames_url = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/video-converter-get-video-frames-url-prod/invocations",
     provider_arn                         = aws_cognito_user_pool.main.arn
   })
 
@@ -91,14 +91,6 @@ resource "aws_api_gateway_deployment" "main" {
     create_before_destroy = true
   }
 }
-
-# resource "aws_api_gateway_vpc_link" "main_vpc_link" {
-#   name = "k8s-vpc-link"
-
-#   target_arns = [
-#     data.aws_lb.loadbalancer.arn
-#   ]
-# }
 
 data "aws_iam_policy_document" "main_policy_document" {
   statement {
