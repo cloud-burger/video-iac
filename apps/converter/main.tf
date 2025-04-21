@@ -60,7 +60,6 @@ locals {
   }
 }
 
-
 module "lambda_converter" {
   source   = "../../modules/lambda"
   for_each = local.lambdas
@@ -69,10 +68,11 @@ module "lambda_converter" {
   lambda_role        = aws_iam_role.lambda_role.arn
   handler            = each.value
   source_bucket      = "cloud-burger-artifacts"
-  source_key         = "converter.zip"
+  source_key         = "${each.key}.zip"
   project            = var.project
   source_code_hash   = base64encode(sha256("${var.commit_hash}"))
   subnet_ids         = local.aws_public_subnets
+  memory_size        = 10000
   security_group_ids = [aws_security_group.converter.id]
   environment_variables = {
     DATABASE_USERNAME           = resource.aws_ssm_parameter.database_username.value
@@ -80,6 +80,8 @@ module "lambda_converter" {
     DATABASE_PASSWORD           = resource.aws_ssm_parameter.database_password.value
     DATABASE_PORT               = resource.aws_ssm_parameter.database_port.value
     DATABASE_HOST               = trim(resource.aws_ssm_parameter.database_host.value, ":5432")
+    BUCKET_NAME                 = "${var.project}-${var.environment}"
+    VIDEO_QUEUE_URL             = "https://sqs.${var.region}.amazonaws.com/${data.aws_caller_identity.current.account_id}/video-notification-${var.environment}"
     DATABASE_CONNECTION_TIMEOUT = 120000
   }
 }
@@ -91,7 +93,7 @@ resource "aws_cloudwatch_log_group" "lambda_converter" {
 }
 
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project}-role"
+  name = "${var.project}-${var.environment}"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -104,60 +106,6 @@ resource "aws_iam_role" "lambda_role" {
       Effect = "Allow"
     }]
   })
-}
-
-resource "aws_iam_policy" "ssm_policy" {
-  name        = "ssm_policy"
-  description = "SSM Policy"
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "ssm:GetParameters",
-          "ssm:GetParameter"
-        ],
-        Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project}/*"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy_attachment" "ssm_policy_attachment" {
-  name       = "ssm_policy_attachment"
-  roles      = [aws_iam_role.lambda_role.name]
-  policy_arn = aws_iam_policy.ssm_policy.arn
-}
-
-resource "aws_iam_policy_attachment" "lambda_policy_attachment" {
-  name       = "${var.project}-lambda-policy-attachment"
-  roles      = [aws_iam_role.lambda_role.name]
-  policy_arn = "arn:aws:iam::aws:policy/AWSLambda_FullAccess"
-}
-
-resource "aws_iam_policy_attachment" "lambda_cloudwatch_policy" {
-  name       = "${var.project}-lambda_cloudwatch_policy"
-  roles      = [aws_iam_role.lambda_role.name]
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
-}
-
-resource "aws_iam_policy_attachment" "lambda_sqs_policy" {
-  name       = "${var.project}-lambda_sqs_policy"
-  roles      = [aws_iam_role.lambda_role.name]
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
-}
-
-resource "aws_iam_policy_attachment" "lambda_rds_policy" {
-  name       = "lambda_rds_policy"
-  roles      = [aws_iam_role.lambda_role.name]
-  policy_arn = "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess"
-}
-
-resource "aws_iam_policy_attachment" "lambda_vpc_policy" {
-  name       = "lambda_vpc_policy"
-  roles      = [aws_iam_role.lambda_role.name]
-  policy_arn = "arn:aws:iam::aws:policy/AmazonVPCFullAccess"
 }
 
 resource "aws_security_group" "converter" {
@@ -260,4 +208,47 @@ resource "aws_ssm_parameter" "database_password" {
   name  = "/prod/${var.project}/database-password"
   value = var.database_password
   type  = "SecureString"
+}
+
+resource "aws_s3_bucket" "converter" {
+  bucket = "${var.project}-${var.environment}"
+
+  tags = {
+    Name        = "${var.project}-${var.environment}"
+    Environment = var.environment
+  }
+}
+
+resource "aws_s3_bucket_notification" "process_notification" {
+  bucket = aws_s3_bucket.converter.id
+
+  lambda_function {
+    lambda_function_arn = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:video-converter-process-video-${var.environment}"
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "videos/"
+    filter_suffix       = ".mp4"
+  }
+
+  depends_on = [aws_lambda_permission.allow_bucket]
+}
+
+data "aws_iam_policy_document" "assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+resource "aws_lambda_permission" "allow_bucket" {
+  statement_id  = "AllowExecutionFromS3Bucket1"
+  action        = "lambda:InvokeFunction"
+  function_name = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:video-converter-process-video-${var.environment}"
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.converter.arn
 }
