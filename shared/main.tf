@@ -108,6 +108,13 @@ resource "aws_iam_policy" "lambda_custom_policy" {
           "lambda:InvokeFunction"
         ],
         Resource = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function/*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:*"
+        ],
+        Resource = "arn:aws:s3:::video-converter-${var.environment}/*"
       }
     ]
   })
