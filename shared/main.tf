@@ -111,9 +111,9 @@ resource "aws_api_gateway_rest_api_policy" "main_policy" {
   policy      = data.aws_iam_policy_document.main_policy_document.json
 }
 
-resource "aws_iam_policy" "ssm_policy" {
-  name        = "ssm_policy"
-  description = "SSM Policy"
+resource "aws_iam_policy" "lambda_custom_policy" {
+  name        = "${var.project}-custom-${var.environment}"
+  description = "${var.project}-custom-${var.environment}"
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -124,6 +124,13 @@ resource "aws_iam_policy" "ssm_policy" {
           "ssm:GetParameter"
         ],
         Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project}/*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "lambda:InvokeFunction"
+        ],
+        Resource = "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function/*"
       }
     ]
   })
@@ -134,7 +141,7 @@ locals {
     0 = "arn:aws:iam::aws:policy/AWSLambda_FullAccess"
     1 = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
     2 = "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
-    3 = aws_iam_policy.ssm_policy.arn
+    3 = aws_iam_policy.lambda_custom_policy.arn
     4 = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
     5 = "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess"
     6 = "arn:aws:iam::aws:policy/AmazonVPCFullAccess"
@@ -150,36 +157,3 @@ resource "aws_iam_policy_attachment" "lambda_policy_attachment" {
   ]
   policy_arn = each.value
 }
-
-# data "aws_iam_policy_document" "invocation_assume_role" {
-#   statement {
-#     effect = "Allow"
-
-#     principals {
-#       type        = "Service"
-#       identifiers = ["apigateway.amazonaws.com"]
-#     }
-
-#     actions = ["sts:AssumeRole"]
-#   }
-# }
-
-# resource "aws_iam_role" "invocation_role" {
-#   name               = "api_gateway_auth_invocation"
-#   path               = "/"
-#   assume_role_policy = data.aws_iam_policy_document.invocation_assume_role.json
-# }
-
-# data "aws_iam_policy_document" "invocation_policy" {
-#   statement {
-#     effect    = "Allow"
-#     actions   = ["lambda:InvokeFunction"]
-#     resources = [module.lambda_authorizer.arn]
-#   }
-# }
-
-# resource "aws_iam_role_policy" "invocation_policy" {
-#   name   = "default"
-#   role   = aws_iam_role.invocation_role.id
-#   policy = data.aws_iam_policy_document.invocation_policy.json
-# }

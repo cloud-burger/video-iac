@@ -92,20 +92,25 @@ resource "aws_cloudwatch_log_group" "lambda_converter" {
   retention_in_days = 5
 }
 
+data "aws_iam_policy_document" "assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = [
+        "lambda.amazonaws.com",
+        "apigateway.amazonaws.com"
+      ]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
+}
+
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project}-${var.environment}"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Action = [
-        "sts:AssumeRole"
-      ],
-      Principal = {
-        Service = "lambda.amazonaws.com"
-      },
-      Effect = "Allow"
-    }]
-  })
+  name               = "${var.project}-${var.environment}"
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
 resource "aws_security_group" "converter" {
@@ -230,19 +235,6 @@ resource "aws_s3_bucket_notification" "process_notification" {
   }
 
   depends_on = [aws_lambda_permission.allow_bucket]
-}
-
-data "aws_iam_policy_document" "assume_role" {
-  statement {
-    effect = "Allow"
-
-    principals {
-      type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
-    }
-
-    actions = ["sts:AssumeRole"]
-  }
 }
 
 resource "aws_lambda_permission" "allow_bucket" {
