@@ -25,32 +25,8 @@ resource "aws_cognito_user_pool_client" "main_client" {
   allowed_oauth_scopes = [
     "email",
     "openid",
-    "profile",
-    "cloud-burger-video/list_videos",
-    "cloud-burger-video/put_video_url",
-    "cloud-burger-video/get_video_frames_url"
+    "profile"
   ]
-}
-
-resource "aws_cognito_resource_server" "main_resource_server" {
-  user_pool_id = aws_cognito_user_pool.main.id
-  identifier   = "cloud-burger-video"
-  name         = "Recursos das rotas de administracao"
-
-  scope {
-    scope_name        = "list_videos"
-    scope_description = "Lista os videos e seus status de processamento"
-  }
-
-  scope {
-    scope_name        = "put_video_url"
-    scope_description = "Obtem url para upload de video"
-  }
-
-  scope {
-    scope_name        = "get_video_frames_url"
-    scope_description = "Obtem url para obter zip com frames do video"
-  }
 }
 
 resource "aws_api_gateway_rest_api" "main" {
