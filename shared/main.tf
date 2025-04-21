@@ -111,6 +111,7 @@ resource "aws_api_gateway_rest_api_policy" "main_policy" {
   policy      = data.aws_iam_policy_document.main_policy_document.json
 }
 
+
 resource "aws_iam_policy" "lambda_custom_policy" {
   name        = "${var.project}-custom-${var.environment}"
   description = "${var.project}-custom-${var.environment}"
@@ -157,3 +158,4 @@ resource "aws_iam_policy_attachment" "lambda_policy_attachment" {
   ]
   policy_arn = each.value
 }
+
