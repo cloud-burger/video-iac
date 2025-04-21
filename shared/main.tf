@@ -57,9 +57,9 @@ resource "aws_api_gateway_rest_api" "main" {
   name = "${var.project}-video-${var.environment}"
 
   body = templatefile("${path.module}/openapi.yaml", {
-    lambda_function_list_video           = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/${arn_lambda_function_list_video}/invocations",
-    lambda_function_put_video_url        = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/${arn_lambda_function_put_video_url}/invocations",
-    lambda_function_get_video_frames_url = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/${arn_lambda_function_get_video_frames_url}/invocations",
+    lambda_function_list_video           = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:video-converter-list-videos-${var.environment}/invocations",
+    lambda_function_put_video_url        = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:video-converter-get-video-url-${var.environment}/invocations",
+    lambda_function_get_video_frames_url = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:video-converter-get-video-frames-url-${var.environment}/invocations",
     provider_arn                         = aws_cognito_user_pool.main.arn
   })
 
@@ -92,14 +92,6 @@ resource "aws_api_gateway_deployment" "main" {
   }
 }
 
-# resource "aws_api_gateway_vpc_link" "main_vpc_link" {
-#   name = "k8s-vpc-link"
-
-#   target_arns = [
-#     data.aws_lb.loadbalancer.arn
-#   ]
-# }
-
 data "aws_iam_policy_document" "main_policy_document" {
   statement {
     effect = "Allow"
@@ -117,6 +109,46 @@ data "aws_iam_policy_document" "main_policy_document" {
 resource "aws_api_gateway_rest_api_policy" "main_policy" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   policy      = data.aws_iam_policy_document.main_policy_document.json
+}
+
+resource "aws_iam_policy" "ssm_policy" {
+  name        = "ssm_policy"
+  description = "SSM Policy"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "ssm:GetParameters",
+          "ssm:GetParameter"
+        ],
+        Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project}/*"
+      }
+    ]
+  })
+}
+
+locals {
+  policies = {
+    0 = "arn:aws:iam::aws:policy/AWSLambda_FullAccess"
+    1 = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+    2 = "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
+    3 = aws_iam_policy.ssm_policy.arn
+    4 = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+    5 = "arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess"
+    6 = "arn:aws:iam::aws:policy/AmazonVPCFullAccess"
+  }
+}
+
+resource "aws_iam_policy_attachment" "lambda_policy_attachment" {
+  for_each = local.policies
+  name       = "${var.project}-lambda-policy-attachment"
+  roles      = [
+    "video-converter-${var.environment}",
+    "video-notification-${var.environment}"
+  ]
+  policy_arn = each.value
 }
 
 # data "aws_iam_policy_document" "invocation_assume_role" {
