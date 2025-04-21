@@ -1,12 +1,3 @@
-locals {
-  aws_vpc_id          = "vpc-095ec31f03c4cf8b4"
-  aws_public_subnets  = [
-    "subnet-0ed0eba4ca6e2c360",
-    "subnet-094bdc0191613ff5e",
-    "subnet-018ee66d66f2401ae"
-  ]
-}
-
 data "aws_iam_policy_document" "video_converter" {
   statement {
     effect = "Allow"
@@ -71,7 +62,7 @@ module "lambda_converter" {
   source_key         = "${each.key}.zip"
   project            = var.project
   source_code_hash   = base64encode(sha256("${var.commit_hash}"))
-  subnet_ids         = local.aws_public_subnets
+  subnet_ids         = data.terraform_remote_state.iac_state.outputs.private_subnets
   memory_size        = 10000
   security_group_ids = [aws_security_group.converter.id]
   environment_variables = {
@@ -92,25 +83,30 @@ resource "aws_cloudwatch_log_group" "lambda_converter" {
   retention_in_days = 5
 }
 
+data "aws_iam_policy_document" "assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = [
+        "lambda.amazonaws.com",
+        "apigateway.amazonaws.com"
+      ]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
+}
+
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project}-${var.environment}"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Action = [
-        "sts:AssumeRole"
-      ],
-      Principal = {
-        Service = "lambda.amazonaws.com"
-      },
-      Effect = "Allow"
-    }]
-  })
+  name               = "${var.project}-${var.environment}"
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
 resource "aws_security_group" "converter" {
   name   = "converter"
-  vpc_id = local.aws_vpc_id
+  vpc_id = data.terraform_remote_state.iac_state.outputs.vpc_id
 
   egress {
     from_port   = 0
@@ -164,14 +160,13 @@ resource "aws_db_instance" "converter" {
 
 resource "aws_db_subnet_group" "main" {
   name       = var.project
-  subnet_ids = local.aws_public_subnets
+  subnet_ids = data.terraform_remote_state.iac_state.outputs.public_subnets
 }
 
 resource "aws_security_group" "rds_public_sg" {
   name        = var.project
   description = "Allow postgres inbound traffic"
-  vpc_id      = local.aws_vpc_id
-
+  vpc_id      = data.terraform_remote_state.iac_state.outputs.vpc_id
   ingress {
     from_port   = 5432
     to_port     = 5432
@@ -230,19 +225,6 @@ resource "aws_s3_bucket_notification" "process_notification" {
   }
 
   depends_on = [aws_lambda_permission.allow_bucket]
-}
-
-data "aws_iam_policy_document" "assume_role" {
-  statement {
-    effect = "Allow"
-
-    principals {
-      type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
-    }
-
-    actions = ["sts:AssumeRole"]
-  }
 }
 
 resource "aws_lambda_permission" "allow_bucket" {
