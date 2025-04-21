@@ -1,23 +1,3 @@
-data "aws_iam_policy_document" "video_converter" {
-  statement {
-    effect = "Allow"
-
-    principals {
-      type        = "Service"
-      identifiers = ["s3.amazonaws.com"]
-    }
-
-    actions   = ["SNS:Publish"]
-    resources = ["arn:aws:sns:*:*:${var.project}-s3-${var.environment}"]
-
-    condition {
-      test     = "ArnLike"
-      variable = "aws:SourceArn"
-      values   = [aws_s3_bucket.video_files.arn]
-    }
-  }
-}
-
 locals {
   lambdas = {
     list-videos          = "src/app/handlers/list-videos/index.handler"
