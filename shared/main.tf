@@ -57,9 +57,9 @@ resource "aws_api_gateway_rest_api" "main" {
   name = "${var.project}-video-${var.environment}"
 
   body = templatefile("${path.module}/openapi.yaml", {
-    lambda_function_list_video           = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/video-converter-list-videos-prod/invocations",
-    lambda_function_put_video_url        = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/video-converter-get-video-url-prod/invocations",
-    lambda_function_get_video_frames_url = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/video-converter-get-video-frames-url-prod/invocations",
+    lambda_function_list_video           = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/arn:aws:lambda:us-east-1:${data.aws_caller_identity.current.account_id}:function:video-converter-list-videos-prod/invocations",
+    lambda_function_put_video_url        = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/arn:aws:lambda:us-east-1:${data.aws_caller_identity.current.account_id}:function:video-converter-get-video-url-prod/invocations",
+    lambda_function_get_video_frames_url = "arn:aws:apigateway:${var.region}:lambda:path/${var.api_version}/functions/arn:aws:lambda:us-east-1:${data.aws_caller_identity.current.account_id}:function:video-converter-get-video-frames-url-prod/invocations",
     provider_arn                         = aws_cognito_user_pool.main.arn
   })
 

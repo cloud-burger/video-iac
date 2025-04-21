@@ -37,6 +37,12 @@ resource "aws_iam_policy_attachment" "sns_policy_attachment" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
 }
 
+resource "aws_iam_policy_attachment" "sqs_policy_attachment" {
+  name       = "${var.project}-sqs-policy-attachment"
+  roles      = [aws_iam_role.lambda_role.name]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
+}
+
 resource "aws_sns_topic" "video_email_notification" {
   name   = "${var.project}-email-${var.environment}"
 }
@@ -71,4 +77,33 @@ resource "aws_sqs_queue" "video_notification" {
       maxReceiveCount     = 5
     }
   )
+}
+
+resource "aws_lambda_event_source_mapping" "video_converter_event_source_mapping" {
+  event_source_arn = aws_sqs_queue.video_notification.arn
+  enabled          = true
+  function_name    = module.lambda_notification.arn
+}
+
+
+resource "aws_dynamodb_table" "video_notification" {
+  name         = "${var.project}-${var.environment}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  attribute {
+    name = "notification_id"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "notification_id_gsi"
+    hash_key        = "notification_id"
+    projection_type = "ALL"
+  }
 }

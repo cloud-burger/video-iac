@@ -90,12 +90,6 @@ resource "aws_cloudwatch_log_group" "lambda_converter" {
   retention_in_days = 5
 }
 
-resource "aws_lambda_event_source_mapping" "video_converter_event_source_mapping" {
-  event_source_arn = aws_sqs_queue.video_converter_files.arn
-  enabled          = true
-  function_name    = module.lambda_converter.arn
-}
-
 resource "aws_iam_role" "lambda_role" {
   name = "${var.project}-role"
   assume_role_policy = jsonencode({
