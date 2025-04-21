@@ -18,30 +18,6 @@ data "aws_iam_policy_document" "video_converter" {
   }
 }
 
-resource "aws_sns_topic" "video_converter" {
-  name   = "${var.project}-s3-${var.environment}"
-  policy = data.aws_iam_policy_document.video_converter.json
-}
-
-resource "aws_s3_bucket" "video_files" {
-  bucket = "${var.project}-files-${var.environment}"
-
-  tags = {
-    Name        = "${var.project}-files-${var.environment}"
-    Environment = var.environment
-  }
-}
-
-resource "aws_s3_bucket_notification" "video_converter_notification" {
-  bucket = aws_s3_bucket.video_files.id
-
-  topic {
-    topic_arn     = aws_sns_topic.video_converter.arn
-    events        = ["s3:ObjectCreated:*"]
-    filter_suffix = ".mp4"
-  }
-}
-
 locals {
   lambdas = {
     list-videos          = "src/app/handlers/list-videos/index.handler"
