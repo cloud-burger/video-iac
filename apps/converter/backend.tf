@@ -10,4 +10,14 @@ terraform {
   }
 }
 
+data "terraform_remote_state" "iac_state" {
+  backend = "s3"
+
+  config = {
+    bucket = "cloud-burger-states"
+    key    = "prod/iac.tfstate"
+    region = "us-east-1"
+  }
+}
+
 data "aws_caller_identity" "current" {}
