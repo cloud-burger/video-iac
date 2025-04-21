@@ -57,7 +57,7 @@ jobs:
       - name: Deploy Notification
         run: |
           cd apps/notification
-          terraform init && terraform apply -auto-approve
+          terraform init && terraform apply -var "commit_hash=${{ github.sha }}" -auto-approve
 
   deploy_converter:
     name: "Deploy Converter"
@@ -77,7 +77,7 @@ jobs:
       - name: Deploy Converter
         run: |
           cd apps/converter
-          terraform init && terraform apply -var "database_password=${{ secrets.DATABASE_PASSWORD }}" -auto-approve
+          terraform init && terraform apply -var "database_password=${{ secrets.DATABASE_PASSWORD }}" -var "commit_hash=${{ github.sha }}" -auto-approve
 
   terraform_destroy_apps:
     name: "Destroy Apps"
