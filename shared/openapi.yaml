@@ -22,7 +22,7 @@ paths:
       description: Retrieve a list of videos with their processing status and metadata.
       operationId: listVideos
       security:
-        - cloud-burger-cognito: ["cloud-burger-video/list_videos"]
+        - cloud-burger-cognito: []
       parameters:
         - name: pageSize
           in: query
@@ -72,7 +72,7 @@ paths:
       description: Generate a signed URL for uploading a video.
       operationId: getVideoUrl
       security:
-        - cloud-burger-cognito: ["cloud-burger-video/put_video_url"]
+        - cloud-burger-cognito: []
       responses:
         '200':
           description: A signed URL for video upload.
@@ -96,7 +96,7 @@ paths:
       description: Retrieve a signed URL for downloading the frames of a processed video.
       operationId: getVideoFramesUrl
       security:
-        - cloud-burger-cognito: ["cloud-burger-video/get_video_frames_url"]
+        - cloud-burger-cognito: []
       parameters:
         - name: id
           in: path
