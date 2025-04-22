@@ -16,9 +16,8 @@ resource "aws_lambda_layer_version" "ffmpeg_layer" {
 }
 
 module "lambda_converter" {
-  source   = "../../modules/lambda"
-  for_each = local.lambdas
-
+  source        = "../../modules/lambda"
+  for_each      = local.lambdas
   name          = "${var.project}-${each.key}-${var.environment}"
   lambda_role   = aws_iam_role.lambda_role.arn
   handler       = each.value
