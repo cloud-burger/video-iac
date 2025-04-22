@@ -17,6 +17,9 @@ module "lambda_converter" {
   source_bucket      = "cloud-burger-artifacts"
   source_key         = "${each.key}.zip"
   project            = var.project
+  layers = [
+    "arn:aws:lambda:us-east-1:123456789012:layer:ffmpeg:1"
+  ]
   source_code_hash   = base64encode(sha256("${var.commit_hash}"))
   subnet_ids         = data.terraform_remote_state.iac_state.outputs.private_subnets
   memory_size        = 10000
