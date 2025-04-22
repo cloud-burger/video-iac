@@ -1,9 +1,9 @@
 locals {
   lambdas = {
-    0 = "list-videos"
-    1 = "get-video-url"
-    2 = "process-video"
-    3 = "get-video-frames-url"
+    list-videos          = 0
+    get-video-url        = 1
+    process-video        = 2
+    get-video-frames-url = 3
   }
 }
 
