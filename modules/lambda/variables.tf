@@ -2,18 +2,6 @@ variable "name" {
   type = string
 }
 
-variable "source_code_hash" {
-  default = ""
-}
-
-variable "source_bucket" {
-  type = string
-}
-
-variable "source_key" {
-  type = string
-}
-
 variable "project" {
   type = string
 }
@@ -56,4 +44,8 @@ variable "layers" {
 
 variable "runtime" {
   default = "nodejs20.x"
+}
+
+variable "image_uri" {
+  type = string
 }

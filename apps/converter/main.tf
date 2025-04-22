@@ -1,33 +1,19 @@
 locals {
   lambdas = {
-    list-videos          = "src/app/handlers/list-videos/index.handler"
-    get-video-url        = "src/app/handlers/get-video-url/index.handler"
-    process-video        = "src/app/handlers/process-video/index.handler"
-    get-video-frames-url = "src/app/handlers/get-video-frames-url/index.handler"
+    0 = "list-videos"
+    1 = "get-video-url"
+    2 = "process-video"
+    3 = "get-video-frames-url"
   }
 }
 
-resource "aws_lambda_layer_version" "ffmpeg_layer" {
-  s3_bucket           = "cloud-burger-artifacts"
-  s3_key              = "layers/ffmpeg-layer.zip"
-  layer_name          = "ffmpeg-layer"
-  compatible_runtimes = ["nodejs20.x"]
-  description         = "FFmpeg and FFprobe layer for Lambda aws"
-}
-
 module "lambda_converter" {
-  source        = "../../modules/lambda"
-  for_each      = local.lambdas
-  name          = "${var.project}-${each.key}-${var.environment}"
-  lambda_role   = aws_iam_role.lambda_role.arn
-  handler       = each.value
-  source_bucket = "cloud-burger-artifacts"
-  source_key    = "${each.key}.zip"
-  project       = var.project
-  layers = [
-    aws_lambda_layer_version.ffmpeg_layer.arn
-  ]
-  source_code_hash   = base64encode(sha256("${var.commit_hash}"))
+  source             = "../../modules/lambda"
+  for_each           = local.lambdas
+  name               = "${var.project}-${each.key}-${var.environment}"
+  lambda_role        = aws_iam_role.lambda_role.arn
+  project            = var.project
+  image_uri          = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.project}-app-${var.environment}:latest"
   subnet_ids         = data.terraform_remote_state.iac_state.outputs.private_subnets
   memory_size        = 10000
   security_group_ids = [aws_security_group.converter.id]
