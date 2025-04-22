@@ -23,6 +23,7 @@ module "lambda_converter" {
   source_bucket = "cloud-burger-artifacts"
   source_key    = "${each.key}.zip"
   project       = var.project
+  architectures = ["x86_64"]
   layers = [
     aws_lambda_layer_version.ffmpeg_layer.arn
   ]
