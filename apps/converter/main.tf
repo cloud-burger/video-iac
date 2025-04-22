@@ -12,7 +12,7 @@ resource "aws_lambda_layer_version" "ffmpeg_layer" {
   s3_key              = "layers/ffmpeg-layer.zip"
   layer_name          = "ffmpeg-layer"
   compatible_runtimes = ["nodejs20.x"]
-  description         = "FFmpeg and FFprobe layer for Lambda"
+  description         = "FFmpeg and FFprobe layer for Lambda aws"
 }
 
 module "lambda_converter" {
