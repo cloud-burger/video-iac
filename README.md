@@ -48,32 +48,6 @@ video-iac/
 
 ---
 
-## 🚀 Como usar
-
-### 1. Clone o repositório:
-
-```bash
-git clone https://github.com/cloud-burger/video-iac.git
-cd video-iac
-```
-
-### 2. Configure suas variáveis de ambiente:
-
-```bash
-cp terraform.tfvars.example terraform.tfvars
-# Edite com suas configurações de ambiente
-```
-
-### 3. Inicialize e aplique:
-
-```bash
-terraform init
-terraform plan
-terraform apply
-```
-
----
-
 ## 🛠️ Requisitos
 
 - [Terraform](https://www.terraform.io/downloads)
