@@ -18,7 +18,7 @@ module "lambda_converter" {
   source_key         = "${each.key}.zip"
   project            = var.project
   layers = [
-    "arn:aws:lambda:us-east-1:123456789012:layer:ffmpeg:1"
+    "arn:aws:lambda:us-east-1:175033217214:layer:ffmpeg:21"
   ]
   source_code_hash   = base64encode(sha256("${var.commit_hash}"))
   subnet_ids         = data.terraform_remote_state.iac_state.outputs.private_subnets
