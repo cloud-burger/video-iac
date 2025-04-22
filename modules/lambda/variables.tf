@@ -10,6 +10,10 @@ variable "source_bucket" {
   type = string
 }
 
+variable "architectures" {
+  default = ["arm64"]
+}
+
 variable "source_key" {
   type = string
 }

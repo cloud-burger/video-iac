@@ -8,7 +8,7 @@ resource "aws_lambda_function" "main" {
   timeout                        = var.timeout
   memory_size                    = var.memory_size
   layers                         = var.layers
-  architectures                  = ["arm64"]
+  architectures                  = var.architectures
   reserved_concurrent_executions = "-1"
   source_code_hash               = var.source_code_hash
 
