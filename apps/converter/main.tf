@@ -7,18 +7,26 @@ locals {
   }
 }
 
+resource "aws_lambda_layer_version" "ffmpeg_layer" {
+  s3_bucket           = "cloud-burger-artifacts"
+  s3_key              = "layers/ffmpeg-layer.zip"
+  layer_name          = "ffmpeg-layer"
+  compatible_runtimes = ["nodejs20.x"]
+  description         = "FFmpeg and FFprobe layer for Lambda"
+}
+
 module "lambda_converter" {
   source   = "../../modules/lambda"
   for_each = local.lambdas
 
-  name               = "${var.project}-${each.key}-${var.environment}"
-  lambda_role        = aws_iam_role.lambda_role.arn
-  handler            = each.value
-  source_bucket      = "cloud-burger-artifacts"
-  source_key         = "${each.key}.zip"
-  project            = var.project
+  name          = "${var.project}-${each.key}-${var.environment}"
+  lambda_role   = aws_iam_role.lambda_role.arn
+  handler       = each.value
+  source_bucket = "cloud-burger-artifacts"
+  source_key    = "${each.key}.zip"
+  project       = var.project
   layers = [
-    "arn:aws:lambda:us-east-1:175033217214:layer:ffmpeg:21"
+    aws_lambda_layer_version.ffmpeg_layer.arn
   ]
   source_code_hash   = base64encode(sha256("${var.commit_hash}"))
   subnet_ids         = data.terraform_remote_state.iac_state.outputs.private_subnets
@@ -47,7 +55,7 @@ data "aws_iam_policy_document" "assume_role" {
     effect = "Allow"
 
     principals {
-      type        = "Service"
+      type = "Service"
       identifiers = [
         "lambda.amazonaws.com",
         "apigateway.amazonaws.com"
